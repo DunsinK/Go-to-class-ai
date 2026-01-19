@@ -1,0 +1,79 @@
+services:
+  # Frontend - Vite + React
+  frontend:
+    build: ./frontend
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      - VITE_API_URL=http://localhost:8000
+    depends_on:
+      - backend
+    networks:
+      - app-network
+
+  # Backend - FastAPI
+  backend:
+    build: ./backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+    environment:
+      - DATABASE_URL=mongodb://mongodb:27017/go_to_class_ai
+    depends_on:
+      - mongodb
+    networks:
+      - app-network
+
+  # Database - MongoDB (default)
+  mongodb:
+    image: mongo:7.0
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+      - ./database/mongodb/init-mongo.js:/docker-entrypoint-initdb.d/init-mongo.js:ro
+    environment:
+      - MONGO_INITDB_DATABASE=go_to_class_ai
+    networks:
+      - app-network
+
+  # Alternative Database - PostgreSQL (commented out by default)
+  # Uncomment this and comment out mongodb if you prefer PostgreSQL
+  # postgres:
+  #   image: postgres:16
+  #   ports:
+  #     - "5432:5432"
+  #   volumes:
+  #     - postgres_data:/var/lib/postgresql/data
+  #     - ./database/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+  #   environment:
+  #     - POSTGRES_DB=go_to_class_ai
+  #     - POSTGRES_USER=postgres
+  #     - POSTGRES_PASSWORD=postgres
+  #   networks:
+  #     - app-network
+
+  # Worker/Scheduler (optional)
+  worker:
+    build: ./worker
+    volumes:
+      - ./worker:/app
+    environment:
+      - DATABASE_URL=mongodb://mongodb:27017/go_to_class_ai
+    depends_on:
+      - mongodb
+      - backend
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  mongodb_data:
+  # postgres_data:  # Uncomment if using PostgreSQL
